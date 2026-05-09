@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 虚拟环境
+venv/
+env/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 日志和数据库
+logs/
+*.log
+*.db
+*.db-shm
+*.db-wal
+agent_memory.db
+chat_history.db
+
+# 向量数据库
+rag/chroma_db/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 构建产物
+frontend/dist/
+build/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 文档
+*.md
+docs/
+
+# 其他
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp

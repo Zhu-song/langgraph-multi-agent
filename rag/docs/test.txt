@@ -1,0 +1,5 @@
+AI Agent开发学习路线：
+1. 掌握Python基础和LangChain框架
+2. 学习LangGraph多智能体工作流编排
+3. 开发结构化工具、Supervisor调度架构
+4. 接入向量RAG实现私有文档问答

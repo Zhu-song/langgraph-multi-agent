@@ -1,0 +1,12 @@
+{
+  "name": "langgraph-agent",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -n \"后端,前端\" -c \"blue,green\" \"python main.py\" \"cd frontend && npm run dev\"",
+    "backend": "python main.py",
+    "frontend": "cd frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
