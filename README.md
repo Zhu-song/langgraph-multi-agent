@@ -1,5 +1,7 @@
 # LangGraph 多智能体助手
 
+[English](./README_EN.md) | 简体中文
+
 <p>
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white" />
@@ -45,7 +47,7 @@
 
 ### 👥 多用户系统
 
-- 用户注册/登录（SHA256 密码哈希）
+- 用户注册/登录（bcrypt 安全密码哈希）
 - 用户间数据完全隔离（`thread_id = user_id`）
 - 用户切换需密码验证
 - 忘记密码 / 修改密码 / 删除用户
@@ -324,7 +326,8 @@ def human_approval(state):
 ├── config.py               # LLM / Neo4j 配置
 ├── .env                    # 环境变量
 ├── requirements.txt        # Python 依赖
-├── start.sh                # 一键启动脚本
+├── start.sh                # 一键启动脚本（自动管理虚拟环境）
+├── setup.sh                # 虚拟环境管理脚本
 │
 ├── tools/                  # 15 个 Agent 工具
 │   ├── calc_tool.py        #   数学计算器（递归下降解析）
@@ -383,8 +386,23 @@ def human_approval(state):
 
 ### 安装
 
+#### 方式一：使用虚拟环境（推荐）
+
 ```bash
 git clone https://github.com/your-username/langgraph-agent.git
+cd langgraph-agent
+
+# 初始化虚拟环境并安装依赖
+./setup.sh init
+
+# 安装前端依赖
+cd frontend && npm install && cd ..
+```
+
+#### 方式二：全局安装
+
+```bash
+git clone https://github.com/Zhu-song/langgraph-agent.git
 cd langgraph-agent
 
 pip install -r requirements.txt
@@ -412,9 +430,25 @@ NEO4J_PWD=your-password
 ### 启动
 
 ```bash
-bash start.sh
+./start.sh
 # 后端 http://localhost:8000  |  前端 http://localhost:3000
 ```
+
+> **注意**：`start.sh` 会自动检测并创建 Python 虚拟环境（`venv/`），自动安装依赖，然后启动服务。
+
+### 虚拟环境管理
+
+项目使用 Python 内置的 `venv` 模块管理虚拟环境，位于 `venv/` 目录。
+
+| 命令 | 说明 |
+|------|------|
+| `./setup.sh init` | 创建虚拟环境并安装依赖（首次使用） |
+| `./setup.sh install` | 安装/更新依赖 |
+| `./setup.sh clean` | 删除虚拟环境 |
+| `./setup.sh reset` | 重置虚拟环境（删除后重新创建） |
+| `./setup.sh shell` | 进入虚拟环境 Shell |
+
+**依赖更新**：当 `requirements.txt` 修改后，下次启动时会自动检测并更新依赖。
 
 ## Docker 部署
 
@@ -511,6 +545,29 @@ docker-compose down -v
 | POST | `/api/knowledge/graph/build` | 构建知识图谱 |
 | GET | `/api/approval/check/{user_id}` | 检查 interrupt 状态 |
 | POST | `/api/approval/resume` | 审核后恢复工作流 |
+
+## 📚 文档
+
+完整文档请访问 [docs/](./docs/README.md) 目录：
+
+| 文档 | 说明 |
+|------|------|
+| [安装指南](./docs/getting-started/installation.md) | 详细的安装步骤 |
+| [配置文件说明](./docs/getting-started/configuration.md) | 环境变量与配置详解 |
+| [5分钟快速上手](./docs/getting-started/quickstart.md) | 快速体验核心功能 |
+| [对话模式说明](./docs/user-guide/chat-modes.md) | 5种对话模式的区别与使用 |
+| [知识库使用指南](./docs/user-guide/knowledge-base.md) | 如何构建和使用知识库 |
+| [人工审核功能](./docs/user-guide/approval.md) | 高危工具的人工审核机制 |
+| [常见问题 FAQ](./docs/user-guide/faq.md) | 常见问题解答 |
+| [Docker 部署](./docs/deployment/docker.md) | 使用 Docker 快速部署 |
+| [生产环境部署](./docs/deployment/production.md) | 生产环境最佳实践 |
+| [环境变量详解](./docs/deployment/environment.md) | 所有配置项说明 |
+| [架构设计](./docs/development/architecture.md) | 系统架构详解 |
+| [工作流详解](./docs/development/workflow.md) | LangGraph 工作流设计 |
+| [工具开发指南](./docs/development/tools.md) | 如何添加自定义工具 |
+| [API 接口文档](./docs/development/api.md) | REST API 详细说明 |
+| [贡献指南](./docs/contributing/contributing.md) | 如何参与项目贡献 |
+| [代码规范](./docs/contributing/code-style.md) | 编码规范与风格 |
 
 ## 致谢
 

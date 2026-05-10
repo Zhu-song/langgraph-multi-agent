@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 
 # 导入文本分割器：将长文本切分成小块（向量库标准操作）
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # 导入Chroma向量数据库
 from langchain_chroma import Chroma

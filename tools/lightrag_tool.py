@@ -1,7 +1,7 @@
 # 导入rag模块
 from rag import light_rag
 # 导入LangChain工具封装类
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 # 定义LightRAG双层检索函数
 def lightrag_operate(question: str, mode: str = "hybrid") -> str:

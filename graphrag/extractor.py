@@ -1,4 +1,4 @@
-from .config import llm
+from .settings import llm
 
 def extract_entity_relation(text: str) -> str:
     """

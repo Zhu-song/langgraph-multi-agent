@@ -1,12 +1,13 @@
 # 操作系统库，用于文件/目录操作
 import os
 import re
+import logging
 
 # 文档加载器：读取 TXT / Markdown / PDF 文档
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 
 # 文本分割器：将长文档切分成小片段，便于抽取实体关系
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Neo4j 图数据库官方驱动
 from neo4j import GraphDatabase
@@ -36,8 +37,23 @@ CHUNK_SIZE = 600
 # 文本块之间的重叠长度（保证上下文连贯性）
 CHUNK_OVERLAP = 80
 
-# 初始化 Neo4j 数据库驱动（建立连接）
-driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PWD))
+# 初始化 Neo4j 数据库驱动（延迟连接，仅在配置有效时）
+_driver = None
+
+def get_driver():
+    """获取 Neo4j 驱动（延迟初始化）"""
+    global _driver
+    if _driver is None:
+        if NEO4J_URI and NEO4J_URI.strip() and NEO4J_URI.startswith(('bolt://', 'neo4j://')):
+            try:
+                _driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PWD))
+                logging.info("Neo4j 连接成功")
+            except Exception as e:
+                logging.warning(f"Neo4j 连接失败: {e}")
+                _driver = None
+        else:
+            logging.info("Neo4j 未配置，知识图谱功能将不可用")
+    return _driver
 
 # 初始化文本分割器
 text_splitter = RecursiveCharacterTextSplitter(
@@ -47,8 +63,11 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 def clear_graph():
     """清空整个知识图谱"""
+    d = get_driver()
+    if not d:
+        return "⚠️ Neo4j 未配置，无法清空图谱"
     # 创建数据库会话
-    with driver.session() as session:
+    with d.session() as session:
         # 执行 Cypher 语句：删除所有节点和关系（清空数据库）
         session.run("MATCH (n) DETACH DELETE n")
 
@@ -82,6 +101,10 @@ def create_relation(tx, e1, rel, e2):
 
 def build_graph_from_docs():
     """从文档自动构建知识图谱（全量构建，每次清空重建）"""
+    # 检查 Neo4j 是否配置
+    if not get_driver():
+        return "⚠️ Neo4j 未配置，无法构建知识图谱"
+    
     # 检查文档目录是否存在
     if not os.path.exists(DOC_DIR):
         return "⚠️ 文档目录不存在"
@@ -124,7 +147,10 @@ def build_graph_from_docs():
 
                 # 按行分割结果（每行 = 一个三元组）
                 lines = raw.splitlines()
-                with driver.session() as session:
+                d = get_driver()
+                if not d:
+                    continue
+                with d.session() as session:
                     for line in lines:
                         line = line.strip()
                         # 格式校验
@@ -153,6 +179,10 @@ def graph_qa(question: str) -> str:
     
     ⚠️ 已修复：添加 Cypher 注入防护，使用只读事务
     """
+    # 检查 Neo4j 是否配置
+    if not get_driver():
+        return "⚠️ Neo4j 未配置，知识图谱功能不可用"
+    
     # 提示词：让 LLM 生成合法的 Cypher 查询语句
     prompt = f"""
 你是Neo4j Cypher查询专家。
@@ -172,7 +202,10 @@ def graph_qa(question: str) -> str:
 
     try:
         # 执行查询（使用只读事务）
-        with driver.session() as session:
+        d = get_driver()
+        if not d:
+            return "⚠️ Neo4j 未配置，无法查询图谱"
+        with d.session() as session:
             result = session.read_transaction(lambda tx: tx.run(cypher))
             # 转为字典格式
             records = [dict(r) for r in result]

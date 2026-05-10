@@ -1,7 +1,7 @@
 # 导入配置好的大模型 llm
-from .config import llm
+from .settings import llm
 # 导入 Neo4j 数据库驱动
-from .neo4j_client import driver
+from .neo4j_client import get_driver
 
 # ====================== ⚠️ Cypher 安全检查 ======================
 # 禁止的危险关键字列表（防止注入攻击）
@@ -31,6 +31,11 @@ def graph_qa(question: str) -> str:
     
     ⚠️ 已修复：添加 Cypher 注入防护，使用只读事务
     """
+    # 检查 Neo4j 是否配置
+    d = get_driver()
+    if d is None:
+        return "⚠️ Neo4j 未配置，知识图谱功能不可用"
+    
     # 构造提示词，让 LLM 生成 Cypher 查询语句
     prompt = f"""
 你是Neo4j Cypher查询专家。
@@ -50,7 +55,7 @@ def graph_qa(question: str) -> str:
 
     try:
         # 打开 Neo4j 会话
-        with driver.session() as session:
+        with d.session() as session:
             # ⚠️ 使用只读事务执行查询，防止数据修改
             result = session.read_transaction(lambda tx: tx.run(cypher))
             # 将查询结果转成字典列表

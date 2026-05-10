@@ -1,4 +1,4 @@
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 import re
 
 def text_format_convert(input_str: str)->str:

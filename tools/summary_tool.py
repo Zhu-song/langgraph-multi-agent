@@ -2,7 +2,7 @@
 #路由标识 summary
 
 # 导入LangChain结构化工具封装模块
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 # 导入项目中配置好的大模型对象
 from config import llm
 

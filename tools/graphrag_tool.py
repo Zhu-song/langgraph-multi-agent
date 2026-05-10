@@ -1,5 +1,5 @@
 # 导入 LangChain 工具封装类
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 # 导入核心的知识图谱问答函数
 from graphrag.graphrag_core import graph_qa

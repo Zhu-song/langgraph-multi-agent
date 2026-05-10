@@ -4,7 +4,7 @@
 import math
 import re
 import operator
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 # ====================== ⚠️ 安全的数学表达式解析器 ======================
 # 不使用 eval()，改用安全的表达式解析

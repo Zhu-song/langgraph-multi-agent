@@ -2,7 +2,7 @@
 import json
 import re
 # 导入LangChain工具封装类
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 # 定义JSON处理函数
 def json_operate(json_str: str)->str:

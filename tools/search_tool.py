@@ -4,7 +4,7 @@
 # 流程：百度国内搜索 → LLM精炼总结 → 返回简洁答案
 
 # 导入LangChain结构化工具封装模块
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 # 导入项目中配置好的大模型对象
 from config import llm
 # 国内轻量搜索库（无依赖错误、稳定、秒回）

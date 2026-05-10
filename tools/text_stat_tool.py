@@ -1,5 +1,5 @@
 # 导入 LangChain 工具封装类，用于创建标准工具
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 # 定义文本统计与清洗函数
 def text_stat_clean(text: str)->str:

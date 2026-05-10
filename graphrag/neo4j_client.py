@@ -1,8 +1,8 @@
 # 导入 Neo4j 官方 Python 驱动，用于连接和操作图数据库
 from neo4j import GraphDatabase
 
-# 从当前包的 config 中导入所有配置（NEO4J_URI、账号密码、IS_INCREMENTAL 等）
-from .config import NEO4J_URI, NEO4J_USER, NEO4J_PWD, IS_INCREMENTAL
+# 从当前包的 settings 中导入所有配置（NEO4J_URI、账号密码、IS_INCREMENTAL 等）
+from .settings import NEO4J_URI, NEO4J_USER, NEO4J_PWD, IS_INCREMENTAL
 
 # ====================== ⚠️ 延迟初始化：Neo4j 驱动管理 ======================
 # 改为延迟初始化，避免模块导入时就创建连接
@@ -12,22 +12,37 @@ def get_driver():
     """
     获取 Neo4j 驱动实例（延迟初始化）
     只有在真正需要时才创建连接
+    如果未配置则返回 None
     """
     global _driver
     if _driver is None:
-        if not NEO4J_URI or not NEO4J_USER or not NEO4J_PWD:
-            raise ValueError("❌ Neo4j 配置缺失，请检查环境变量 NEO4J_URI、NEO4J_USER、NEO4J_PWD")
-        _driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PWD))
+        if not NEO4J_URI or not NEO4J_URI.strip() or not NEO4J_URI.startswith(('bolt://', 'neo4j://')):
+            return None
+        if not NEO4J_USER or not NEO4J_PWD:
+            return None
+        try:
+            _driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PWD))
+        except Exception:
+            return None
     return _driver
 
 # 为了向后兼容，提供 driver 属性
 class _DriverProxy:
     """代理类，延迟获取驱动"""
     def __getattr__(self, name):
-        return getattr(get_driver(), name)
+        d = get_driver()
+        if d is None:
+            raise RuntimeError("Neo4j 未配置，无法使用图谱功能")
+        return getattr(d, name)
     
     def __bool__(self):
         return get_driver() is not None
+    
+    def session(self):
+        d = get_driver()
+        if d is None:
+            raise RuntimeError("Neo4j 未配置，无法使用图谱功能")
+        return d.session()
 
 driver = _DriverProxy()
 
@@ -45,9 +60,14 @@ def close_driver():
 # ====================== 图谱清空（全量模式） ======================
 def clear_graph():
     """清空整个图谱（仅在非增量模式下执行）"""
+    # 检查 Neo4j 是否配置
+    d = get_driver()
+    if d is None:
+        return  # Neo4j 未配置，直接返回
+    
     # 判断是否为【非增量模式】，是才清空（全量重建）
     if not IS_INCREMENTAL:
-        with driver.session() as session:
+        with d.session() as session:
             # Cypher 语句：删除所有节点和关系（清空数据库）
             session.run("MATCH (n) DETACH DELETE n")
 

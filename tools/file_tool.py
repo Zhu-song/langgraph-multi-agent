@@ -4,7 +4,7 @@
 
 import os 
 from pathlib import Path
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 # ====================== ⚠️ 安全配置：白名单目录 ======================
 # 只允许操作这些目录下的文件，防止路径遍历攻击

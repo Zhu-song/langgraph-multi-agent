@@ -1,21 +1,38 @@
+# 环境变量
+.env
+.env.local
+.env.*.local
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.egg-info/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
 *.egg
-.pytest_cache/
-.coverage
-htmlcov/
+MANIFEST
 
 # 虚拟环境
 venv/
 env/
 .venv/
 ENV/
+env.bak/
+venv.bak/
 
 # IDE
 .idea/
@@ -23,6 +40,16 @@ ENV/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
+
+# 测试和覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
 
 # 日志和数据库
 logs/
@@ -30,8 +57,6 @@ logs/
 *.db
 *.db-shm
 *.db-wal
-agent_memory.db
-chat_history.db
 
 # 向量数据库
 rag/chroma_db/
@@ -41,31 +66,32 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# 构建产物
+# 前端构建
 frontend/dist/
-build/
 
-# 环境变量
-.env
-.env.local
-.env.*.local
-
-# Git
-.git/
-.gitignore
-
-# Docker
-Dockerfile*
-docker-compose*.yml
-.dockerignore
-
-# 文档
-*.md
-docs/
-
-# 其他
+# 系统文件
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# 临时文件
 *.bak
 *.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json

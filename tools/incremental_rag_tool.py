@@ -1,5 +1,5 @@
 # 导入结构化工具基类，用于给 LangGraph 智能体提供调用工具
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 # 🔥【只改这里：路径改成你真实的 rag 目录】
 from rag.incremental_db import IncrementalChromaDB

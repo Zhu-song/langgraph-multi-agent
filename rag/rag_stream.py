@@ -1,6 +1,7 @@
 # rag/rag_stream.py
-import asyncio  # 只新增这一行
-from functools import wraps  # 只新增这一行
+import asyncio
+import time
+from functools import wraps
 from rag.rag_core import retriever, llm, reflect_answer, format_citation
 from rag.citation import format_citation
 
@@ -23,7 +24,7 @@ def async_rate_limit(func):
             return
         
         key = str(args[0])
-        now = asyncio.get_event_loop().time()
+        now = time.time()
 
         # 限流判断
         if key in ASYNC_REQUEST_CACHE and now - ASYNC_REQUEST_CACHE[key] < LIMIT_SECONDS:
@@ -45,16 +46,16 @@ def async_trace_log(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         trace_id = str(uuid.uuid4())[:8]
-        start_time = asyncio.get_event_loop().time()
+        start_time = time.time()
         logger.info(f"[{trace_id}] 开始流式执行：rag_stream_generator | 问题：{args[0]}")
         
         try:
             async for item in func(*args, **kwargs):
                 yield item
-            cost = round(asyncio.get_event_loop().time() - start_time, 2)
+            cost = round(time.time() - start_time, 2)
             logger.info(f"[{trace_id}] 流式执行成功 | 耗时：{cost}s")
         except Exception as e:
-            cost = round(asyncio.get_event_loop().time() - start_time, 2)
+            cost = round(time.time() - start_time, 2)
             logger.error(f"[{trace_id}] 流式执行失败 | 耗时：{cost}s | 错误：{str(e)}")
             raise
     return wrapper

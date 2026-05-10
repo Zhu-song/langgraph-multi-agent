@@ -1,7 +1,26 @@
 {
   "name": "langgraph-agent-frontend",
   "version": "1.0.0",
-  "description": "LangGraph 多智能体助手前端",
+  "description": "LangGraph 多智能体助手前端 - 基于 Vue 3 的智能对话界面",
+  "author": "LangGraph Agent Team",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/langgraph-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/langgraph-agent/issues"
+  },
+  "homepage": "https://github.com/your-username/langgraph-agent#readme",
+  "keywords": [
+    "langgraph",
+    "agent",
+    "ai",
+    "chatbot",
+    "rag",
+    "vue3"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,5 +37,8 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
     "vite": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

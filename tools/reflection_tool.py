@@ -1,4 +1,4 @@
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 from reflection.reflection_core import reflect_answer
 
 def reflection_self_check(question: str, raw_answer: str) -> str:

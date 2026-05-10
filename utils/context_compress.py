@@ -1,6 +1,6 @@
 # utils/context_compress.py
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from config import llm
 
 # 上下文压缩提示词模板

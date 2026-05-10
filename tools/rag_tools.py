@@ -1,4 +1,4 @@
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 from rag.rag_core import rag_query
 
 def rag_knowledge_query(question: str)->str:

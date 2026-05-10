@@ -3,12 +3,12 @@ import os
 # 导入文档加载器：加载 TXT/MD/PDF 文档
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 # 导入文本分割器：将长文档切分为小片段，便于抽取实体关系
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# 从当前包的 config 导入所有配置（CHUNK_SIZE、DOC_DIR 等）
-from .config import *
+# 从当前包的 settings 导入所有配置（CHUNK_SIZE、DOC_DIR 等）
+from .settings import *
 # 导入 Neo4j 客户端：数据库驱动、清空图谱、实体检查、创建关系等方法
-from .neo4j_client import driver, clear_graph, is_entity_exists, create_relation_with_source
+from .neo4j_client import get_driver, clear_graph, is_entity_exists, create_relation_with_source
 # 导入实体关系抽取函数：调用 LLM 从文本抽取「实体1|关系|实体2|置信度」
 from .extractor import extract_entity_relation
 # 导入实体归一化函数：统一实体名称（如 北京/北京市 → 归一为 北京市）
@@ -22,6 +22,11 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 def build_graph_from_docs():
     """从文档构建/增量更新知识图谱"""
+    # 检查 Neo4j 是否配置
+    d = get_driver()
+    if d is None:
+        return "⚠️ Neo4j 未配置，无法构建知识图谱"
+    
     # 检查文档目录是否存在
     if not os.path.exists(DOC_DIR):
         return "⚠️ 文档目录不存在"
@@ -67,7 +72,7 @@ def build_graph_from_docs():
                 # 按行拆分抽取结果（每行格式：实体1|关系|实体2|置信度）
                 lines = raw_result.splitlines()
                 # 创建 Neo4j 数据库会话
-                with driver.session() as session:
+                with d.session() as session:
                     for line in lines:
                         line = line.strip()
                         # 按 | 分割字段

@@ -1,5 +1,6 @@
 # utils/global_fallback.py
 from functools import wraps
+from langchain_core.messages import AIMessage
 
 # 全局友好兜底文案映射
 # 作用：系统出现各种异常时，给用户返回友好提示，不暴露技术报错
@@ -15,7 +16,7 @@ FALLBACK_MSG = {
 }
 
 def global_fallback_decorator(func):
-    """全局全局故障兜底装饰器：捕获所有异常，返回友好文案，不抛堆栈"""
+    """全局故障兜底装饰器：捕获所有异常，返回友好文案（LangGraph 兼容格式）"""
     @wraps(func)  # 保留原函数信息，不破坏函数结构
     def wrapper(*args, **kwargs):
         try:
@@ -24,21 +25,22 @@ def global_fallback_decorator(func):
         except Exception as e:
             # 捕获所有异常，转为小写方便匹配
             err = str(e).lower()
-
+            
             # 根据异常关键词匹配友好提示
+            msg = FALLBACK_MSG["default"]  # 默认兜底
             if "timeout" in err or "超时" in err:
-                return FALLBACK_MSG["api_timeout"]
+                msg = FALLBACK_MSG["api_timeout"]
             elif "auth" in err or "key" in err or "鉴权" in err:
-                return FALLBACK_MSG["auth_fail"]
+                msg = FALLBACK_MSG["auth_fail"]
             elif "file" in err or "pdf" in err or "编码" in err:
-                return FALLBACK_MSG["file_error"]
+                msg = FALLBACK_MSG["file_error"]
             elif "param" in err or "参数" in err:
-                return FALLBACK_MSG["param_error"]
+                msg = FALLBACK_MSG["param_error"]
             elif "network" in err or "连接" in err:
-                return FALLBACK_MSG["network_error"]
-            else:
-                # 未知错误，返回默认兜底
-                return FALLBACK_MSG["default"]
+                msg = FALLBACK_MSG["network_error"]
+            
+            # 返回 LangGraph 兼容格式（dict 包含 messages）
+            return {"messages": [AIMessage(content=msg)]}
     return wrapper
 
 
@@ -63,4 +65,3 @@ def async_global_fallback_decorator(func):
                 yield FALLBACK_MSG["param_error"]
             else:
                 yield FALLBACK_MSG["default"]
-    return wrapper

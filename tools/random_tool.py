@@ -3,7 +3,7 @@ import random
 # 导入字符串工具模块
 import string
 # 导入 LangChain 工具封装类
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 def random_generate(mode: str, length: int = 8)->str:
     """

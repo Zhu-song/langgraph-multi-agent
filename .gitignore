@@ -34,6 +34,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# 保留 pip 配置文件（放在 venv/ 忽略规则之后）
+!pip.conf
+
 # IDE
 .idea/
 .vscode/
