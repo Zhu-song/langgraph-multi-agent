@@ -21,6 +21,10 @@ export default defineConfig({
       '/knowledge': {
         target: 'http://localhost:8000',
         changeOrigin: true
+      },
+      '/plan-execute': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
       }
     }
   }

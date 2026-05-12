@@ -9,11 +9,17 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader
 # 文本分割器：将长文档切分成小片段，便于抽取实体关系
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# Neo4j 图数据库官方驱动
 from neo4j import GraphDatabase
-
-# 从项目配置导入：大模型实例 + Neo4j 连接信息（统一配置，无硬编码）
 from config import llm, NEO4J_URI, NEO4J_USER, NEO4J_PWD
+
+# 兼容 neo4j 5.x/6.x：write_transaction 已移除，改用 execute_write
+def _execute_write(session, func, *args, **kwargs):
+    if hasattr(session, 'execute_write'):
+        return session.execute_write(func, *args, **kwargs)
+    elif hasattr(session, 'write_transaction'):
+        return session.write_transaction(func, *args, **kwargs)
+    else:
+        raise RuntimeError("不支持的 neo4j 驱动版本")
 
 # ====================== ⚠️ Cypher 安全检查 ======================
 DANGEROUS_KEYWORDS = [
@@ -164,7 +170,7 @@ def build_graph_from_docs():
                         # 解析实体1、关系、实体2
                         e1, rel, e2 = parts
                         # 写入知识图谱
-                        session.write_transaction(create_relation, e1.strip(), rel.strip(), e2.strip())
+                        _execute_write(session, create_relation, e1.strip(), rel.strip(), e2.strip())
                         all_nodes += 1
 
         # 单个文件异常不影响整体流程
@@ -173,6 +179,25 @@ def build_graph_from_docs():
 
     # 返回构建结果
     return f"✅ 知识图谱构建完成，共抽取关系 {all_nodes} 条"
+
+def _clean_cypher(raw: str) -> str:
+    """清理 LLM 生成的 Cypher 语句，移除 markdown 代码块标记、语言标识等多余内容"""
+    import re
+    text = raw.strip()
+    # 移除 markdown 代码块标记
+    text = re.sub(r'^```\s*(?:cypher|neo4j)?\s*\n?', '', text)
+    text = re.sub(r'\n?```\s*$', '', text)
+    text = text.strip()
+    # 移除开头的语言标识（如 "cypher\n" 或 "Cypher:"）
+    text = re.sub(r'^(?:cypher|Cypher|CYPHER)\s*[:：]?\s*\n?', '', text)
+    text = text.strip()
+    # 只取有效语句
+    lines = [line.strip() for line in text.split('\n') if line.strip() and not line.strip().startswith('//')]
+    if lines:
+        for i, line in enumerate(lines):
+            if re.match(r'^(MATCH|OPTIONAL\s+MATCH|WITH|RETURN)', line, re.IGNORECASE):
+                return '\n'.join(lines[i:])
+    return text
 
 def graph_qa(question: str) -> str:
     """知识图谱智能问答（NL → Cypher → 结果返回）
@@ -193,7 +218,9 @@ def graph_qa(question: str) -> str:
 用户问题：{question}
 """
     # 生成 Cypher
-    cypher = llm.invoke(prompt).content.strip()
+    raw_cypher = llm.invoke(prompt).content.strip()
+    # 清理 LLM 输出中的 markdown 代码块标记、语言标识等多余内容
+    cypher = _clean_cypher(raw_cypher)
 
     # ====================== 安全检查：Cypher 注入防护 ======================
     is_safe, err_msg = _is_cypher_safe(cypher)
@@ -206,9 +233,8 @@ def graph_qa(question: str) -> str:
         if not d:
             return "⚠️ Neo4j 未配置，无法查询图谱"
         with d.session() as session:
-            result = session.read_transaction(lambda tx: tx.run(cypher))
-            # 转为字典格式
-            records = [dict(r) for r in result]
+            # 在事务内部消费 Result，避免事务关闭后无法读取
+            records = session.read_transaction(lambda tx: tx.run(cypher).data())
 
         # 无结果返回提示
         if not records:

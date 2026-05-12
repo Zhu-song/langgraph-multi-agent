@@ -430,7 +430,8 @@ const handleCreate = async () => {
     await approvalStore.createApproval({
       user_id: chatStore.userId,
       tool_name: createForm.value.tool_name,
-      tool_params: params
+      tool_args: params,
+      reason: createForm.value.reason
     })
 
     createForm.value = { tool_name: '', reason: '', params: '' }

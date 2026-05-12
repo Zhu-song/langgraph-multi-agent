@@ -4,7 +4,7 @@
 from typing import List, Dict
 
 # 🔥 新增：全局默认阈值
-DEFAULT_SCORE_THRESHOLD = 0.45
+DEFAULT_SCORE_THRESHOLD = 1.5
 
 class RAGRetriever:
     """

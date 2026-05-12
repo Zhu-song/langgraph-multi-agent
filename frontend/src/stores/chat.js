@@ -17,7 +17,8 @@ export const useChatStore = defineStore('chat', () => {
     { id: 'chat-stream', name: '流式对话', icon: '🌊', description: 'SSE 实时流式输出' },
     { id: 'rag', name: 'RAG问答', icon: '📚', description: '知识库检索问答' },
     { id: 'rag-stream', name: 'RAG流式', icon: '📖', description: '知识库流式问答' },
-    { id: 'rag-real-stream', name: '真实RAG流式', icon: '📄', description: '逐Token打字机效果' }
+    { id: 'rag-real-stream', name: '真实RAG流式', icon: '📄', description: '逐Token打字机效果' },
+    { id: 'plan-execute', name: '任务规划', icon: '📋', description: 'Plan and Execute 任务分解执行' }
   ]
   
   // 当前模式信息

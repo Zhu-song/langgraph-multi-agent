@@ -60,3 +60,6 @@ class AgentState(TypedDict):
 
     # 6. RAG 流式输出
     stream_context: Optional[str]                    # 流式生成用的上下文
+
+    # 7. 工具执行
+    tool_call_index: Optional[int]                   # 当前工具调用索引（Send 并行派发使用）

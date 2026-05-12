@@ -10,9 +10,10 @@
 - [5分钟快速上手](./getting-started/quickstart.md) - 快速体验核心功能
 
 ### 📖 用户指南
-- [对话模式说明](./user-guide/chat-modes.md) - 5种对话模式的区别与使用
+- [对话模式说明](./user-guide/chat-modes.md) - 6种对话模式的区别与使用
 - [知识库使用指南](./user-guide/knowledge-base.md) - 如何构建和使用知识库
 - [人工审核功能](./user-guide/approval.md) - 高危工具的人工审核机制
+- [Plan-Execute 模式](./user-guide/plan-execute.md) - Plan-Execute 模式详解
 - [常见问题 FAQ](./user-guide/faq.md) - 常见问题解答
 
 ### 🛠️ 部署文档

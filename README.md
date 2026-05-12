@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green" />
 </p>
 
-基于 **LangGraph** 的多智能体对话系统，集成 RAG 知识库检索、知识图谱推理、人工审核、多用户管理等功能。采用 ReAct 架构，LLM 自主决策工具调用，支持 15 种内置工具。
+基于 **LangGraph** 的多智能体对话系统，集成 RAG 知识库检索、知识图谱推理、人工审核、多用户管理、Plan-Execute 模式等功能。采用 ReAct 架构，LLM 自主决策工具调用，支持 17 种内置工具。
 
 ## 功能特性
 
@@ -19,13 +19,23 @@
 基于 **LangGraph ReAct 架构**，实现 LLM 自主推理与工具调用循环：
 
 - **ReAct 推理循环**：LLM 接收用户输入 → 推理是否需要工具 → 调用工具 → 获取结果 → 继续推理，直到生成最终答案
-- **工具自主决策**：通过 `llm.bind_tools()` 将 15 种工具绑定到 LLM，由模型自主判断何时调用哪个工具
+- **工具自主决策**：通过 `llm.bind_tools()` 将 17 种工具绑定到 LLM，由模型自主判断何时调用哪个工具
 - **并行工具派发**：使用 LangGraph `Send` API 实现多工具并行执行
 - **子图隔离**：工具执行封装在 `tool_subgraph` 子图中，与主 Agent 节点解耦
 - **自省纠错机制**：`reflection_self_check` 工具对 AI 回答进行二次校验与优化
 - **长对话自动压缩**：超过 6 轮自动总结历史，保留最近 2 轮，防止 Token 溢出
 - **SSE 流式输出**：`graph.stream()` + Server-Sent Events 实时推送
 - **状态持久化**：`SqliteSaver` 硬盘级持久化，进程重启可恢复会话
+
+### 📋 Plan-Execute 模式
+
+基于 **LangGraph Plan-Execute 架构**，实现复杂任务的自动分解与执行：
+
+- **自动任务分解**：LLM 将复杂问题分解为有序执行步骤
+- **步骤执行**：每个步骤调用对应工具执行，返回结果
+- **动态重规划**：执行失败时自动调整计划
+- **流式输出**：支持 SSE 实时返回执行进度
+- **状态持久化**：支持进程重启后恢复执行
 
 ### 📚 双层 RAG 检索
 
@@ -134,7 +144,7 @@ LLM 在每一轮循环中同时进行**推理（Reasoning）**和**行动（Acti
 
 ### 工具调用流程
 
-1. **工具绑定**：`llm.bind_tools(tools)` 将 15 个工具的名称、描述、参数 schema 绑定到 LLM
+1. **工具绑定**：`llm.bind_tools(tools)` 将 17 个工具的名称、描述、参数 schema 绑定到 LLM
 2. **LLM 决策**：LLM 根据用户问题和可用工具，自主决定调用哪些工具（可并行调用多个）
 3. **Send 派发**：`my_router` 使用 `Send` API 将每个 tool_call 并行派发到 `tool_subgraph`
 4. **人工审批**：`human_approval` 节点检查工具是否为高危工具，是则触发 `interrupt()` 暂停
@@ -147,7 +157,7 @@ LLM 在每一轮循环中同时进行**推理（Reasoning）**和**行动（Acti
 
 | 提示词 | 用途 | 关键设计 |
 |--------|------|----------|
-| `SUPERVISOR_PROMPT` | 总调度器 | 定义 15 种工具能力边界 + 调用规则 + 时效性关键词强制搜索 |
+| `SUPERVISOR_PROMPT` | 总调度器 | 定义 16 种工具能力边界 + 调用规则 + 时效性关键词强制搜索 |
 | `GLOBAL_RULES` | 全局约束 | 禁止幻觉、简洁输出、善用工具、不重复调用 |
 | `RAG_RETRIEVER_PROMPT` | RAG 检索 | 只检索不生成，提取关键查询词 |
 | `RAG_QA_PROMPT` | RAG 问答 | 禁止幻觉 + 来源引用 + 简洁输出 |
@@ -176,51 +186,55 @@ def human_approval(state):
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              用户界面层 (Vue 3)                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │  LoginPage  │  │  ChatPanel  │  │ KnowledgePnl│  │ApprovalPanel│        │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
-│         │                │                │                │               │
-│         └────────────────┴────────────────┴────────────────┘               │
-│                                   │                                          │
-│                          ┌────────┴────────┐                                │
-│                          │   Pinia Store   │                                │
-│                          │ chat/knowledge/ │                                │
-│                          │    approval     │                                │
-│                          └────────┬────────┘                                │
-└───────────────────────────────────┼─────────────────────────────────────────┘
-                                    │ HTTP/SSE
-                                    ▼
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐     │
+│  │ LoginPage │ │ ChatPanel │ │KnowledgePnl│ │ApprovalPnl│ │PlanExecPnl│     │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘     │
+│        └─────────────┴─────────────┴─────────────┴─────────────┘            │
+│                                    │                                         │
+│                           ┌────────┴────────┐                               │
+│                           │   Pinia Store   │                               │
+│                           │chat/knowledge/  │                               │
+│                           │approval/planExec│                               │
+│                           └────────┬────────┘                               │
+└────────────────────────────────────┼────────────────────────────────────────┘
+                                     │ HTTP/SSE
+                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                            API 网关层 (FastAPI)                              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
 │  │  /chat   │ │  /rag    │ │/knowledge│ │ /api/auth│ │/approval │          │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘          │
-│       │            │            │            │            │                 │
-└───────┼────────────┼────────────┼────────────┼────────────┼─────────────────┘
-        │            │            │            │            │
-        ▼            ▼            ▼            ▼            ▼
+│  ┌──────────┐                                                              │
+│  │/plan-exec│                                                              │
+│  └────┬─────┘                                                              │
+└───────┼────────────────────────────────────────────────────────────────────┘
+        │
+        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         Agent 工作流层 (LangGraph)                           │
 │                                                                              │
 │    ┌─────────────────────────────────────────────────────────────┐         │
 │    │                     ReAct 推理循环                           │         │
-│    │                                                              │         │
 │    │   ┌───────────┐    ┌───────────┐    ┌───────────┐          │         │
 │    │   │ LLM Agent │───▶│  Router   │───▶│Tool Subgraph│          │         │
 │    │   │  (推理)   │◀───│(工具判断) │    │ (执行工具)  │          │         │
 │    │   └───────────┘    └───────────┘    └──────┬────┘          │         │
-│    │         │                                    │               │         │
-│    │         │              ┌─────────────────────┤               │         │
-│    │         │              │                     │               │         │
-│    │         │              ▼                     ▼               │         │
-│    │         │      ┌─────────────┐      ┌─────────────┐         │         │
-│    │         │      │Human Approval│      │  Tool Node  │         │         │
-│    │         │      │ (interrupt) │      │ (执行工具)  │         │         │
-│    │         │      └─────────────┘      └─────────────┘         │         │
-│    │         │                                                    │         │
-│    └─────────┴────────────────────────────────────────────────────┘         │
-│                                    │                                         │
-└────────────────────────────────────┼────────────────────────────────────────┘
+│    │         │              ┌───────────────────┤               │         │
+│    │         │              ▼                   ▼               │         │
+│    │         │      ┌─────────────┐    ┌─────────────┐         │         │
+│    │         │      │Human Approval│    │  Tool Node  │         │         │
+│    │         │      │ (interrupt) │    │ (执行工具)  │         │         │
+│    │         │      └─────────────┘    └─────────────┘         │         │
+│    └─────────┴──────────────────────────────────────────────────┘         │
+│                                                                              │
+│    ┌─────────────────────────────────────────────────────────────┐         │
+│    │                   Plan-Execute 模式                          │         │
+│    │   ┌───────────┐    ┌───────────┐    ┌───────────┐          │         │
+│    │   │  Planner  │───▶│  Executor │───▶│ Replanner │          │         │
+│    │   │ (制定计划) │    │ (执行步骤) │    │ (动态调整) │          │         │
+│    │   └───────────┘    └───────────┘    └───────────┘          │         │
+│    └─────────────────────────────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────────────────────────┘
                                      │
         ┌────────────────────────────┼────────────────────────────┐
         │                            │                            │
@@ -236,8 +250,9 @@ def human_approval(state):
 │ │file_tool  │ │          │ │   Neo4j   │ │          │ │SqliteSaver│ │
 │ │rag_query  │ │          │ │(知识图谱) │ │          │ │(Agent状态)│ │
 │ │reflection │ │          │ └───────────┘ │          │ └───────────┘ │
-│ │    ...    │ │          │               │          │               │
-│ └───────────┘ │          └───────────────┘          └───────────────┘
+│ │plan_exec  │ │          │               │          │               │
+│ │    ...    │ │          └───────────────┘          └───────────────┘
+│ └───────────┘ │
 └───────────────┘
 
 外部服务:
@@ -321,7 +336,7 @@ def human_approval(state):
 ## 项目结构
 
 ```
-├── main.py                 # FastAPI 主入口（26 个 API 路由）
+├── main.py                 # FastAPI 主入口（30+ API 路由）
 ├── workflow.py             # LangGraph 工作流（ReAct + interrupt）
 ├── config.py               # LLM / Neo4j 配置
 ├── .env                    # 环境变量
@@ -329,7 +344,7 @@ def human_approval(state):
 ├── start.sh                # 一键启动脚本（自动管理虚拟环境）
 ├── setup.sh                # 虚拟环境管理脚本
 │
-├── tools/                  # 15 个 Agent 工具
+├── tools/                  # 16 个 Agent 工具
 │   ├── calc_tool.py        #   数学计算器（递归下降解析）
 │   ├── search_tool.py      #   联网搜索（百度 + LLM 总结）
 │   ├── translate_tool.py   #   中英翻译
@@ -339,6 +354,7 @@ def human_approval(state):
 │   ├── graphrag_tool.py    #   知识图谱问答
 │   ├── lightrag_tool.py    #   LightRAG 双层检索
 │   ├── reflection_tool.py  #   自省纠错
+│   ├── plan_execute_tool.py#   Plan-Execute 模式
 │   └── ...                 #   JSON/文本/时间/随机数等
 │
 ├── rag/                    # RAG 检索模块
@@ -354,6 +370,12 @@ def human_approval(state):
 │   ├── extractor.py        #   LLM 实体关系抽取
 │   ├── entity_norm.py      #   实体归一化
 │   └── neo4j_client.py     #   Neo4j 驱动
+│
+├── plan_execute/           # Plan-Execute 模块
+│   ├── graph.py            #   Plan-Execute 工作流
+│   ├── planner.py          #   计划生成器
+│   ├── executor.py         #   步骤执行器
+│   └── replanner.py        #   动态重规划器
 │
 ├── prompts/
 │   └── system_prompt.py    #   5 套系统提示词
@@ -373,7 +395,16 @@ def human_approval(state):
         ├── App.vue
         ├── api/index.js
         ├── stores/         #   Pinia 状态管理
-        └── components/     #   登录/聊天/知识库/审核
+        │   ├── chat.js
+        │   ├── knowledge.js
+        │   ├── approval.js
+        │   └── planExecute.js
+        └── components/     #   组件
+            ├── LoginPage.vue
+            ├── ChatPanel.vue
+            ├── KnowledgePanel.vue
+            ├── ApprovalPanel.vue
+            └── PlanExecutePanel.vue
 ```
 
 ## 快速开始
@@ -389,7 +420,7 @@ def human_approval(state):
 #### 方式一：使用虚拟环境（推荐）
 
 ```bash
-git clone https://github.com/your-username/langgraph-agent.git
+git clone https://github.com/Zhu-song/langgraph-agent.git
 cd langgraph-agent
 
 # 初始化虚拟环境并安装依赖
@@ -521,6 +552,7 @@ docker-compose down -v
 | `lightrag_operate` | 知识库 | LightRAG 双层检索（local/global/hybrid） |
 | `reflection_self_check` | 元认知 | 答案自省纠错/润色 |
 | `incremental_rag_operate` | 知识库 | 知识库增量/全量更新 |
+| `plan_execute` | 计划执行 | 复杂任务分解与执行 |
 
 > 🔴 标记为高危工具，调用前需人工审核通过
 
@@ -536,6 +568,14 @@ docker-compose down -v
 | POST | `/rag/stream` | LightRAG 流式输出 |
 | POST | `/rag/real/stream` | 真实 RAG 流式输出 |
 
+### Plan-Execute
+
+| 方法 | 路由 | 说明 |
+|------|------|------|
+| POST | `/plan-execute` | Plan-Execute 同步执行 |
+| POST | `/plan-execute/stream` | Plan-Execute 流式执行 |
+| GET | `/plan-execute/status/{user_id}` | 获取执行状态 |
+
 ### 知识库 & 审核
 
 | 方法 | 路由 | 说明 |
@@ -545,6 +585,26 @@ docker-compose down -v
 | POST | `/api/knowledge/graph/build` | 构建知识图谱 |
 | GET | `/api/approval/check/{user_id}` | 检查 interrupt 状态 |
 | POST | `/api/approval/resume` | 审核后恢复工作流 |
+
+### 用户认证
+
+| 方法 | 路由 | 说明 |
+|------|------|------|
+| POST | `/api/auth/register` | 用户注册 |
+| POST | `/api/auth/login` | 用户登录 |
+| POST | `/api/auth/verify` | 验证用户密码 |
+| POST | `/api/auth/reset-password` | 重置密码 |
+
+### 会话管理
+
+| 方法 | 路由 | 说明 |
+|------|------|------|
+| GET | `/api/history/{user_id}` | 获取对话历史 |
+| POST | `/api/conversation/new/{user_id}` | 创建新对话 |
+| GET | `/api/conversation/{user_id}/{conv_id}` | 获取对话详情 |
+| PUT | `/api/conversation/{user_id}/{conv_id}/title` | 更新对话标题 |
+| PUT | `/api/conversation/{user_id}/{conv_id}/pinned` | 设置置顶状态 |
+| DELETE | `/api/conversation/{user_id}/{conv_id}` | 删除对话 |
 
 ## 📚 文档
 

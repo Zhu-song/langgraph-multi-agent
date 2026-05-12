@@ -236,6 +236,77 @@ POST /rag/real/stream
 
 ---
 
+### Plan-Execute 同步执行
+
+```http
+POST /plan-execute
+```
+
+**请求体**:
+```json
+{
+    "user_id": "user_xxx",
+    "message": "帮我调研并总结2024年AI行业发展趋势"
+}
+```
+
+**响应**:
+```json
+{
+    "code": 200,
+    "message": "success",
+    "reply": "根据调研结果，2024年AI行业发展趋势如下：...",
+    "plan": [
+        {"step": 1, "task": "搜索2024年AI行业发展趋势"},
+        {"step": 2, "task": "整理搜索结果"},
+        {"step": 3, "task": "总结发展趋势"}
+    ]
+}
+```
+
+### Plan-Execute 流式执行
+
+```http
+POST /plan-execute/stream
+```
+
+**请求体**: 同 `/plan-execute`
+
+**响应**: `text/event-stream`
+
+```
+data: {"plan_step": "步骤1: 搜索2024年AI行业发展趋势"}
+data: {"plan_step": "步骤2: 整理搜索结果"}
+data: {"plan_step": "步骤3: 总结发展趋势"}
+data: {"token": "根据"}
+data: {"token": "调研"}
+data: {"token": "结果"}
+...
+data: [DONE]
+```
+
+### 获取 Plan-Execute 状态
+
+```http
+GET /plan-execute/status/{user_id}
+```
+
+**响应**:
+```json
+{
+    "code": 200,
+    "data": {
+        "is_running": false,
+        "current_step": 0,
+        "total_steps": 3,
+        "plan": [...],
+        "results": [...]
+    }
+}
+```
+
+---
+
 ## 对话管理接口
 
 ### 创建对话
@@ -262,6 +333,7 @@ POST /api/conversations/create
 | `rag_chat` | RAG 问答 |
 | `rag_stream` | RAG 流式 |
 | `rag_real_stream` | 真实 RAG 流式 |
+| `plan_execute` | Plan-Execute 任务分解执行 |
 
 **响应**:
 ```json

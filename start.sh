@@ -2,6 +2,27 @@
 
 # LangGraph 多智能体助手 - 一键启动脚本（支持 Python 虚拟环境）
 
+# ======================
+# 进度条函数
+# ======================
+show_progress() {
+    local label="$1"
+    local steps="$2"
+    local current=0
+    local bar_width=30
+
+    while [ $current -le $steps ]; do
+        local filled=$((current * bar_width / steps))
+        local empty=$((bar_width - filled))
+        local bar=$(printf '█%.0s' $(seq 1 $filled 2>/dev/null))$(printf '░%.0s' $(seq 1 $empty 2>/dev/null))
+        local percent=$((current * 100 / steps))
+        printf "\r  [%s] %d%% %s" "$bar" "$percent" "$label"
+        sleep 0.15
+        current=$((current + 1))
+    done
+    printf "\r  [%s] 100%% %s ✅\n" "$(printf '█%.0s' $(seq 1 $bar_width 2>/dev/null))" "$label"
+}
+
 echo "🚀 启动 LangGraph 多智能体助手..."
 echo "================================"
 
@@ -27,7 +48,7 @@ echo "📋 Python 版本: $(python3 --version)"
 # ======================
 if [ ! -d "$VENV_DIR" ] || [ ! -f "$VENV_DIR/bin/activate" ]; then
     echo "📦 创建 Python 虚拟环境..."
-    rm -rf "$VENV_DIR"  # 清理可能损坏的虚拟环境
+    rm -rf "$VENV_DIR"
     python3 -m venv "$VENV_DIR"
     if [ $? -ne 0 ]; then
         echo "❌ 创建虚拟环境失败，请确保已安装 python3-venv"
@@ -36,13 +57,12 @@ if [ ! -d "$VENV_DIR" ] || [ ! -f "$VENV_DIR/bin/activate" ]; then
         echo "   CentOS/RHEL: sudo yum install python3-virtualenv"
         exit 1
     fi
-    
-    # 验证虚拟环境是否创建成功
+
     if [ ! -f "$VENV_DIR/bin/activate" ]; then
         echo "❌ 虚拟环境创建失败，activate 文件不存在"
         exit 1
     fi
-    
+
     # 配置 pip 国内镜像源（加速下载）
     echo "⚙️  配置 pip 清华镜像源..."
     mkdir -p "$VENV_DIR"
@@ -51,41 +71,56 @@ if [ ! -d "$VENV_DIR" ] || [ ! -f "$VENV_DIR/bin/activate" ]; then
 index-url = https://pypi.tuna.tsinghua.edu.cn/simple
 trusted-host = pypi.tuna.tsinghua.edu.cn
 EOF
-    
-    echo "✅ 虚拟环境创建成功"
+
+    show_progress "虚拟环境创建完成" 10
+else
+    show_progress "虚拟环境检查完成" 5
 fi
 
 # ======================
 # 激活虚拟环境
 # ======================
-echo "🔧 激活虚拟环境..."
 source "$VENV_DIR/bin/activate"
 if [ $? -ne 0 ]; then
     echo "❌ 激活虚拟环境失败"
     exit 1
 fi
 
+show_progress "虚拟环境已激活" 8
+
 # ======================
 # 检查并安装依赖
 # ======================
+NEED_INSTALL=false
+
 if [ ! -f "$VENV_DIR/.dependencies_installed" ] || [ "$SCRIPT_DIR/requirements.txt" -nt "$VENV_DIR/.dependencies_installed" ]; then
+    NEED_INSTALL=true
+fi
+
+if ! python3 -c "import socksio" &> /dev/null; then
+    NEED_INSTALL=true
+fi
+
+if [ "$NEED_INSTALL" = true ]; then
     echo "📥 安装 Python 依赖..."
-    pip install --upgrade pip
+    pip install --upgrade pip -q
     if [ $? -ne 0 ]; then
         echo "❌ pip 升级失败"
         exit 1
     fi
-    
-    pip install -r "$SCRIPT_DIR/requirements.txt"
-    if [ $? -eq 0 ]; then
-        touch "$VENV_DIR/.dependencies_installed"
-        echo "✅ 依赖安装完成"
-    else
+
+    pip install -r "$SCRIPT_DIR/requirements.txt" -q
+    if [ $? -ne 0 ]; then
         echo "❌ 依赖安装失败"
         exit 1
     fi
+
+    pip install "httpx[socks]" -q 2>/dev/null
+
+    touch "$VENV_DIR/.dependencies_installed"
+    show_progress "依赖安装完成" 15
 else
-    echo "✅ 依赖已安装且为最新"
+    show_progress "依赖检查完成" 8
 fi
 
 # ======================
@@ -97,6 +132,8 @@ if [ ! -f "$SCRIPT_DIR/.env" ]; then
     echo "   cp .env.example .env"
 fi
 
+show_progress "环境配置检查完成" 6
+
 # ======================
 # 检查是否安装了 concurrently
 # ======================
@@ -104,6 +141,21 @@ if ! command -v concurrently &> /dev/null; then
     echo "📦 安装 concurrently..."
     npm install -g concurrently 2>/dev/null || sudo npm install -g concurrently 2>/dev/null
 fi
+
+# ======================
+# 检查端口占用
+# ======================
+check_port() {
+    local port=$1
+    if lsof -i :"$port" &> /dev/null; then
+        echo "⚠️  端口 $port 已被占用，可能会影响服务启动"
+    fi
+}
+
+check_port 8000
+check_port 3000
+
+show_progress "启动准备就绪" 10
 
 # ======================
 # 启动服务

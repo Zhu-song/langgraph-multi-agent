@@ -118,7 +118,9 @@ def degrade_decorator(func):
             return res
         except Exception as e:
             set_degrade(3)
-            return "⚙️ 系统异常，已降级为极简问答"
+            import traceback
+            traceback.print_exc()
+            return f"⚙️ 系统异常，已降级为极简问答（原因: {type(e).__name__}: {e}）"
     return wrapper
 
 # ====================== ✅ 【重试装饰器】 ======================
@@ -175,7 +177,7 @@ CONFIG = {
     "CHUNK_SIZE": 800,
     "CHUNK_OVERLAP": 100,
     "SEARCH_K": 3,
-    "SCORE_THRESHOLD": 0.45
+    "SCORE_THRESHOLD": 1.5
 }
 
 # ====================== 初始化RAG组件 ======================

@@ -22,6 +22,8 @@ from .lightrag_tool import lightrag_tool
 
 from .incremental_rag_tool import incremental_rag_tool
 
+from .plan_execute_tool import plan_execute_tool
+
 #统一导出所有核心工具
 core_tools = [
     calc_tool,
@@ -38,5 +40,6 @@ core_tools = [
     graphrag_tool,
     reflection_tool,
     lightrag_tool,
-    incremental_rag_tool
+    incremental_rag_tool,
+    plan_execute_tool
 ]

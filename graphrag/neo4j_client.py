@@ -90,3 +90,26 @@ def create_relation_with_source(tx, e1: str, rel: str, e2: str, source: str):
     """
     # 执行 Cypher，传入参数：实体1、关系、实体2、来源文档
     tx.run(cypher, e1=e1, rel=rel, e2=e2, source=source)
+
+# ====================== 兼容层：适配 neo4j 驱动 5.x/6.x ======================
+# neo4j 5.x+ 移除了 session.write_transaction()，改为 session.execute_write()
+# 这里提供兼容函数，自动选择正确的调用方式
+
+def _execute_write(session, func, *args, **kwargs):
+    """兼容 neo4j 4.x/5.x/6.x 的写入事务执行"""
+    if hasattr(session, 'execute_write'):
+        # neo4j 5.x/6.x
+        return session.execute_write(func, *args, **kwargs)
+    elif hasattr(session, 'write_transaction'):
+        # neo4j 4.x
+        return session.write_transaction(func, *args, **kwargs)
+    else:
+        raise RuntimeError("不支持的 neo4j 驱动版本")
+
+def check_entity_exists(session, entity: str) -> bool:
+    """检查实体是否存在（兼容层）"""
+    return _execute_write(session, is_entity_exists, entity)
+
+def write_relation(session, e1: str, rel: str, e2: str, source: str):
+    """创建实体关系（兼容层）"""
+    _execute_write(session, create_relation_with_source, e1, rel, e2, source)

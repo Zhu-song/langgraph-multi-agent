@@ -11,6 +11,7 @@
 - 执行计算（数学运算、数据处理）
 - 操作文件（读写、删除）
 - 访问私有知识（RAG、知识图谱）
+- 执行计划（Plan-Execute 任务分解）
 
 ### 工具架构
 
@@ -523,12 +524,14 @@ from .calc_tool import calculator
 from .search_tool import web_search
 from .translate_tool import translate
 from .my_tool import my_tool_function
+from .plan_execute_tool import plan_execute
 
 TOOLS = [
     calculator,
     web_search,
     translate,
     my_tool_function,  # 添加新工具
+    plan_execute,
 ]
 ```
 
@@ -563,6 +566,57 @@ if __name__ == "__main__":
     result = my_tool_function("")
     print(result)
 ```
+
+## 内置工具列表
+
+项目内置了 16 个工具，按功能分类如下：
+
+### 通用工具
+
+| 工具 | 文件 | 说明 |
+|------|------|------|
+| `calculator` | `calc_tool.py` | 安全数学表达式解析（递归下降，非 eval） |
+| `web_search` | `search_tool.py` | 百度搜索 + LLM 精炼总结（高危，需审核） |
+| `translate` | `translate_tool.py` | 中英文互译 |
+| `summary` | `summary_tool.py` | 长文本摘要总结 |
+| `json_tool` | `json_tool.py` | JSON 格式化/校验 |
+| `time_tool` | `time_tool.py` | 时间日期查询 |
+| `random_tool` | `random_tool.py` | 随机数/密码/抽签 |
+
+### 文本工具
+
+| 工具 | 文件 | 说明 |
+|------|------|------|
+| `text_stat` | `text_stat_tool.py` | 字数统计/清洗 |
+| `text_format` | `text_format_tool.py` | 大小写/驼峰/下划线转换 |
+
+### 文件工具
+
+| 工具 | 文件 | 说明 |
+|------|------|------|
+| `file_tool` | `file_tool.py` | 文件创建/读取/写入 |
+| `file_delete` | `file_tool.py` | 文件删除（高危，需审核） |
+
+### 知识库工具
+
+| 工具 | 文件 | 说明 |
+|------|------|------|
+| `rag_knowledge_query` | `rag_tools.py` | 私有文档 RAG 问答 |
+| `graph_knowledge_query` | `graphrag_tool.py` | 知识图谱实体关系问答 |
+| `lightrag_operate` | `lightrag_tool.py` | LightRAG 双层检索（local/global/hybrid） |
+| `incremental_rag_operate` | `rag_tools.py` | 知识库增量/全量更新 |
+
+### 元认知工具
+
+| 工具 | 文件 | 说明 |
+|------|------|------|
+| `reflection_self_check` | `reflection_tool.py` | 答案自省纠错/润色 |
+
+### 计划执行工具
+
+| 工具 | 文件 | 说明 |
+|------|------|------|
+| `plan_execute` | `plan_execute_tool.py` | 复杂任务分解与执行（Plan-Execute 模式） |
 
 ## 下一步
 

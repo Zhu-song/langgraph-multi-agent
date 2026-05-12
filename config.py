@@ -78,6 +78,17 @@ HIGH_RISK_TOOLS = {
 }
 
 
+# ===================== Plan and Execute 配置 =====================
+# 最大计划步骤数
+MAX_PLAN_STEPS = int(os.getenv("MAX_PLAN_STEPS", "10"))
+
+# 是否启用重规划
+ENABLE_REPLAN = os.getenv("ENABLE_REPLAN", "true").lower() == "true"
+
+# Plan-Execute 数据库路径
+PLAN_EXECUTE_DB_PATH = os.getenv("PLAN_EXECUTE_DB_PATH", "./plan_execute_memory.db")
+
+
 # ===================== CORS 安全配置 =====================
 # 允许的跨域来源（多个域名用逗号分隔，如 "http://localhost:3000,https://example.com"）
 # 生产环境请配置具体域名，不要使用 "*"

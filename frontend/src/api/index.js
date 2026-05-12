@@ -87,9 +87,14 @@ export const getKnowledgeStatus = () => {
   return api.get('/api/knowledge/status')
 }
 
-// 构建知识图谱
+// 构建知识图谱（耗时操作，单独设置 10 分钟超时）
 export const buildKnowledgeGraph = () => {
-  return api.post('/api/knowledge/graph/build')
+  return api.post('/api/knowledge/graph/build', {}, { timeout: 600000 })
+}
+
+// 清空知识图谱
+export const clearKnowledgeGraph = () => {
+  return api.delete('/api/knowledge/graph/clear')
 }
 
 // ==================== 用户认证 API ====================
@@ -206,23 +211,23 @@ export const submitApproval = (userId, approvalId, approved, comment = '') => {
 }
 
 // 获取审核历史
-export const getApprovalHistory = (userId, limit = 50) => {
-  return api.get(`/api/approval/history/${userId}`, { params: { limit } })
+export const getApprovalHistory = (userId) => {
+  return api.get(`/api/approval/history/${userId}`)
 }
 
 // 获取审核详情
 export const getApprovalDetail = (userId, approvalId) => {
-  return api.get(`/api/approval/${approvalId}`, { params: { user_id: userId } })
+  return api.get(`/api/approval/status/${userId}/${approvalId}`)
 }
 
 // 清理超时审核
 export const cleanupTimeoutApprovals = () => {
-  return api.post('/api/approval/cleanup')
+  return api.delete('/api/approval/timeout')
 }
 
 // 获取高危工具列表
 export const getHighRiskTools = () => {
-  return api.get('/api/approval/high-risk-tools')
+  return api.get('/api/approval/tools/high-risk')
 }
 
 // 检查当前会话是否需要人工审核（interrupt 状态）
@@ -237,4 +242,21 @@ export const resumeAfterApproval = (userId, threadId, approved) => {
     thread_id: threadId,
     approved
   })
+}
+
+// ==================== Plan and Execute API ====================
+
+// Plan-Execute 同步执行
+export const planExecute = (userId, query) => {
+  return api.post('/plan-execute', { user_id: userId, query })
+}
+
+// Plan-Execute 流式执行
+export const planExecuteStream = (userId, query) => {
+  return fetchSSE(`${API_BASE}/plan-execute/stream`, { user_id: userId, query })
+}
+
+// 获取 Plan-Execute 执行状态
+export const getPlanExecuteStatus = (userId) => {
+  return api.get(`/plan-execute/status/${userId}`)
 }

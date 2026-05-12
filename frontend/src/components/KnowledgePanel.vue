@@ -69,6 +69,14 @@
             <span v-if="!knowledgeStore.isLoading">🕸️ 构建图谱</span>
             <span v-else>构建中...</span>
           </button>
+          <button 
+            class="btn btn-danger" 
+            :disabled="knowledgeStore.isLoading"
+            @click="handleClearGraph"
+          >
+            <span v-if="!knowledgeStore.isLoading">🗑️ 清空图谱</span>
+            <span v-else>清空中...</span>
+          </button>
         </div>
         <p class="action-hint">
           💡 增量更新会保留历史数据，全量重建会清空所有数据后重新导入
@@ -138,6 +146,18 @@ const handleFullUpdate = async () => {
 const handleBuildGraph = async () => {
   try {
     await knowledgeStore.buildGraph()
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+// 清空知识图谱
+const handleClearGraph = async () => {
+  if (!confirm('⚠️ 确定要清空所有知识图谱数据吗？此操作不可恢复！')) {
+    return
+  }
+  try {
+    await knowledgeStore.clearGraph()
   } catch (error) {
     console.error(error)
   }

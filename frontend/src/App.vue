@@ -221,7 +221,7 @@ const onLoginSuccess = async (userData) => {
 const handleLogout = () => {
   if (!confirm('确定退出登录吗？')) return
   isLoggedIn.value = false
-  chatStore.messages = []
+  chatStore.clearMessages()
   chatStore.conversations = []
   chatStore.currentConversationId = null
   localStorage.removeItem('userId')
@@ -271,8 +271,8 @@ const confirmSwitchUser = async () => {
     if (res.data.code === 200) {
       // 密码正确，切换用户
       chatStore.saveUserId(switchTargetUser.value.id)
-      chatStore.currentConversationId.value = null
-      chatStore.messages.value = []
+      chatStore.clearMessages()
+      chatStore.currentConversationId = null
       showPasswordModal.value = false
 
       await Promise.all([

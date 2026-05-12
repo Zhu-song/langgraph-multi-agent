@@ -26,6 +26,26 @@ def _is_cypher_safe(cypher: str) -> tuple[bool, str]:
     
     return True, ""
 
+def _clean_cypher(raw: str) -> str:
+    """清理 LLM 生成的 Cypher 语句，移除 markdown 代码块标记等多余内容"""
+    import re
+    text = raw.strip()
+    # 移除 markdown 代码块标记：```cypher ... ``` 或 ``` ... ```
+    text = re.sub(r'^```\s*(?:cypher|neo4j)?\s*\n?', '', text)
+    text = re.sub(r'\n?```\s*$', '', text)
+    text = text.strip()
+    # 移除开头的语言标识（如 "cypher\n" 或 "Cypher:"）
+    text = re.sub(r'^(?:cypher|Cypher|CYPHER)\s*[:：]?\s*\n?', '', text)
+    text = text.strip()
+    # 只取有效语句（跳过空行和注释）
+    lines = [line.strip() for line in text.split('\n') if line.strip() and not line.strip().startswith('//')]
+    if lines:
+        # 找到以 MATCH、OPTIONAL MATCH、WITH 开头的行作为起始
+        for i, line in enumerate(lines):
+            if re.match(r'^(MATCH|OPTIONAL\s+MATCH|WITH|RETURN)', line, re.IGNORECASE):
+                return '\n'.join(lines[i:])
+    return text
+
 def graph_qa(question: str) -> str:
     """基于知识图谱问答，并自动附加来源引用
     
@@ -46,7 +66,9 @@ def graph_qa(question: str) -> str:
 用户问题：{question}
 """
     # 调用大模型，生成 Cypher 查询语句
-    cypher = llm.invoke(prompt).content.strip()
+    raw_cypher = llm.invoke(prompt).content.strip()
+    # 清理 LLM 输出中的 markdown 代码块标记等多余内容
+    cypher = _clean_cypher(raw_cypher)
 
     # ====================== 安全检查：Cypher 注入防护 ======================
     is_safe, err_msg = _is_cypher_safe(cypher)
@@ -56,10 +78,8 @@ def graph_qa(question: str) -> str:
     try:
         # 打开 Neo4j 会话
         with d.session() as session:
-            # ⚠️ 使用只读事务执行查询，防止数据修改
-            result = session.read_transaction(lambda tx: tx.run(cypher))
-            # 将查询结果转成字典列表
-            records = [dict(record) for record in result]
+            # 在事务内部消费 Result，避免事务关闭后无法读取
+            records = session.read_transaction(lambda tx: tx.run(cypher).data())
 
         # 如果没有查询到数据
         if not records:

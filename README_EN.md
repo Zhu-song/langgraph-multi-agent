@@ -10,7 +10,7 @@ English | [简体中文](./README.md)
   <img src="https://img.shields.io/badge/License-MIT-green" />
 </p>
 
-A multi-agent conversational system built on **LangGraph**, featuring RAG knowledge retrieval, knowledge graph reasoning, human-in-the-loop approval, and multi-user management. Powered by the ReAct architecture with LLM-driven tool selection across 15 built-in tools.
+A multi-agent conversational system built on **LangGraph**, featuring RAG knowledge retrieval, knowledge graph reasoning, human-in-the-loop approval, multi-user management, and Plan-Execute mode. Powered by the ReAct architecture with LLM-driven tool selection across 16 built-in tools.
 
 ## Features
 
@@ -19,13 +19,23 @@ A multi-agent conversational system built on **LangGraph**, featuring RAG knowle
 Built on the **LangGraph ReAct architecture**, enabling autonomous LLM reasoning and tool invocation:
 
 - **ReAct Reasoning Loop**: User input → LLM reasoning → tool selection → execution → continue reasoning until final answer
-- **Autonomous Tool Selection**: `llm.bind_tools()` binds 15 tools to the LLM, which independently decides when and which tools to call
+- **Autonomous Tool Selection**: `llm.bind_tools()` binds 16 tools to the LLM, which independently decides when and which tools to call
 - **Parallel Tool Dispatch**: LangGraph `Send` API for concurrent multi-tool execution
 - **Subgraph Isolation**: Tool execution encapsulated in `tool_subgraph`, decoupled from the main Agent node
 - **Self-Reflection**: `reflection_self_check` tool performs secondary validation and optimization of AI responses
 - **Auto Context Compression**: Conversations exceeding 6 turns are automatically summarized, keeping the last 2 turns to prevent token overflow
 - **SSE Streaming**: `graph.stream()` + Server-Sent Events for real-time output
 - **State Persistence**: `SqliteSaver` disk-level persistence, recoverable across process restarts
+
+### 📋 Plan-Execute Mode
+
+Built on the **LangGraph Plan-Execute architecture**, enabling automatic task decomposition and execution:
+
+- **Automatic Task Decomposition**: LLM breaks down complex problems into ordered execution steps
+- **Step Execution**: Each step calls the corresponding tool and returns results
+- **Dynamic Replanning**: Automatically adjusts the plan when execution fails
+- **Streaming Output**: Supports SSE real-time progress updates
+- **State Persistence**: Supports recovery after process restart
 
 ### 📚 Dual-Layer RAG Retrieval
 
@@ -134,7 +144,7 @@ The LLM performs **reasoning** and **acting** simultaneously in each cycle until
 
 ### Tool Invocation Flow
 
-1. **Tool Binding**: `llm.bind_tools(tools)` binds 15 tools' names, descriptions, and parameter schemas to the LLM
+1. **Tool Binding**: `llm.bind_tools(tools)` binds 16 tools' names, descriptions, and parameter schemas to the LLM
 2. **LLM Decision**: LLM autonomously decides which tools to call based on the user's question (can call multiple in parallel)
 3. **Send Dispatch**: `my_router` uses `Send` API to dispatch each tool_call to `tool_subgraph` in parallel
 4. **Human Approval**: `human_approval` node checks if the tool is high-risk; if so, triggers `interrupt()` to pause
@@ -147,7 +157,7 @@ The project uses **5 system prompts** with layered design:
 
 | Prompt | Purpose | Key Design |
 |--------|---------|------------|
-| `SUPERVISOR_PROMPT` | Main dispatcher | Defines 15 tool capability boundaries + invocation rules + time-sensitive keyword forced search |
+| `SUPERVISOR_PROMPT` | Main dispatcher | Defines 16 tool capability boundaries + invocation rules + time-sensitive keyword forced search |
 | `GLOBAL_RULES` | Global constraints | No hallucination, concise output, tool utilization, no duplicate calls |
 | `RAG_RETRIEVER_PROMPT` | RAG retrieval | Retrieve only, extract key query terms |
 | `RAG_QA_PROMPT` | RAG QA | No hallucination + source citations + concise output |
@@ -175,30 +185,33 @@ def human_approval(state):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           UI Layer (Vue 3)                                  │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │  LoginPage  │  │  ChatPanel  │  │ KnowledgePnl│  │ApprovalPanel│        │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
-│         └────────────────┴────────────────┴────────────────┘               │
-│                                   │                                          │
-│                          ┌────────┴────────┐                                │
-│                          │   Pinia Store   │                                │
-│                          │ chat/knowledge/ │                                │
-│                          │    approval     │                                │
-│                          └────────┬────────┘                                │
-└───────────────────────────────────┼─────────────────────────────────────────┘
-                                    │ HTTP/SSE
-                                    ▼
+│                              UI Layer (Vue 3)                                │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐     │
+│  │ LoginPage │ │ ChatPanel │ │KnowledgePnl│ │ApprovalPnl│ │PlanExecPnl│     │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘     │
+│        └─────────────┴─────────────┴─────────────┴─────────────┘            │
+│                                    │                                         │
+│                           ┌────────┴────────┐                               │
+│                           │   Pinia Store   │                               │
+│                           │chat/knowledge/  │                               │
+│                           │approval/planExec│                               │
+│                           └────────┬────────┘                               │
+└────────────────────────────────────┼────────────────────────────────────────┘
+                                     │ HTTP/SSE
+                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           API Gateway (FastAPI)                              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
 │  │  /chat   │ │  /rag    │ │/knowledge│ │ /api/auth│ │/approval │          │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘          │
-└───────┼────────────┼────────────┼────────────┼────────────┼─────────────────┘
-        │            │            │            │            │
-        ▼            ▼            ▼            ▼            ▼
+│  ┌──────────┐                                                              │
+│  │/plan-exec│                                                              │
+│  └────┬─────┘                                                              │
+└───────┼────────────────────────────────────────────────────────────────────┘
+        │
+        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Agent Workflow Layer (LangGraph)                     │
+│                        Agent Workflow Layer (LangGraph)                      │
 │                                                                              │
 │    ┌─────────────────────────────────────────────────────────────┐         │
 │    │                     ReAct Reasoning Loop                     │         │
@@ -206,14 +219,22 @@ def human_approval(state):
 │    │   │ LLM Agent │───▶│  Router   │───▶│Tool Subgraph│          │         │
 │    │   │ (Reason)  │◀───│(Tool Check)│   │(Exec Tools) │          │         │
 │    │   └───────────┘    └───────────┘    └──────┬────┘          │         │
-│    │         │              ┌─────────────────────┤               │         │
-│    │         │              ▼                     ▼               │         │
-│    │         │      ┌─────────────┐      ┌─────────────┐         │         │
-│    │         │      │Human Approval│      │  Tool Node  │         │         │
-│    │         │      │ (interrupt) │      │ (Exec Tool) │         │         │
-│    │         │      └─────────────┘      └─────────────┘         │         │
-│    └─────────┴────────────────────────────────────────────────────┘         │
-└────────────────────────────────────┬────────────────────────────────────────┘
+│    │         │              ┌───────────────────┤               │         │
+│    │         │              ▼                   ▼               │         │
+│    │         │      ┌─────────────┐    ┌─────────────┐         │         │
+│    │         │      │Human Approval│    │  Tool Node  │         │         │
+│    │         │      │ (interrupt) │    │ (Exec Tool) │         │         │
+│    │         │      └─────────────┘    └─────────────┘         │         │
+│    └─────────┴──────────────────────────────────────────────────┘         │
+│                                                                              │
+│    ┌─────────────────────────────────────────────────────────────┐         │
+│    │                   Plan-Execute Mode                          │         │
+│    │   ┌───────────┐    ┌───────────┐    ┌───────────┐          │         │
+│    │   │  Planner  │───▶│  Executor │───▶│ Replanner │          │         │
+│    │   │  (Plan)   │    │ (Execute) │    │  (Adjust) │          │         │
+│    │   └───────────┘    └───────────┘    └───────────┘          │         │
+│    └─────────────────────────────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────────────────────────┘
                                      │
         ┌────────────────────────────┼────────────────────────────┐
         │                            │                            │
@@ -226,7 +247,9 @@ def human_approval(state):
 │ summary        │          │ (Graph)       │          │ (Agent State) │
 │ rag_query      │          │               │          │               │
 │ reflection     │          │               │          │               │
-└───────────────┘          └───────────────┘          └───────────────┘
+│ plan_execute   │          └───────────────┘          └───────────────┘
+│     ...        │
+└───────────────┘
 
 External Services:
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
@@ -248,71 +271,10 @@ External Services:
 | Persistence | SQLite | Users, conversations, agent state |
 | Frontend | Vue 3 + Pinia | SPA interface |
 
-## Data Flow
-
-```
-User Question
-    │
-    ▼
-┌─────────────┐
-│  Frontend   │ ──── POST /chat/stream ────▶
-└─────────────┘
-    │
-    ▼
-┌─────────────┐
-│ FastAPI     │ ──── Create LangGraph config ────▶
-└─────────────┘
-    │
-    ▼
-┌─────────────┐
-│ LLM Reason  │ ◀─── Load system prompt + conversation history
-└─────────────┘
-    │
-    ├── No tool needed ──▶ SSE stream response
-    │
-    └── Tool required
-         │
-         ▼
-    ┌─────────────┐
-    │ High-risk?  │
-    └─────────────┘
-         │
-    ┌────┴────┐
-    │         │
-   Yes        No
-    │         │
-    ▼         ▼
-┌─────────┐ ┌─────────┐
-│interrupt│ │Execute  │
-│Wait for │ │  Tool   │
-│approval │ └────┬────┘
-└────┬────┘      │
-     │           │
-     ▼           ▼
-┌─────────┐ ┌─────────┐
-│ Human   │ │ Tool    │
-│ Approval│ │ Result  │
-│ Yes/No  │ │ → LLM   │
-└────┬────┘ └────┬────┘
-     │           │
-     └─────┬─────┘
-           │
-           ▼
-    ┌─────────────┐
-    │ LLM Continue│
-    │  Reasoning  │
-    └─────────────┘
-           │
-           ▼
-    ┌─────────────┐
-    │ SSE Stream  │ ──── Frontend real-time render ────▶ User sees answer
-    └─────────────┘
-```
-
 ## Project Structure
 
 ```
-├── main.py                 # FastAPI entry point (26 API routes)
+├── main.py                 # FastAPI entry point (30+ API routes)
 ├── workflow.py             # LangGraph workflow (ReAct + interrupt)
 ├── config.py               # LLM / Neo4j / high-risk tools config
 ├── .env                    # Environment variables
@@ -320,7 +282,7 @@ User Question
 ├── start.sh                # One-click startup script (auto-managed venv)
 ├── setup.sh                # Virtual environment management script
 │
-├── tools/                  # 15 Agent tools
+├── tools/                  # 16 Agent tools
 │   ├── calc_tool.py        #   Math calculator (recursive descent)
 │   ├── search_tool.py      #   Web search (Baidu + LLM summary)
 │   ├── translate_tool.py   #   Chinese-English translation
@@ -330,6 +292,7 @@ User Question
 │   ├── graphrag_tool.py    #   Knowledge graph QA
 │   ├── lightrag_tool.py    #   LightRAG dual-layer retrieval
 │   ├── reflection_tool.py  #   Self-reflection & correction
+│   ├── plan_execute_tool.py#   Plan-Execute mode
 │   └── ...                 #   JSON/text/time/random tools
 │
 ├── rag/                    # RAG retrieval module
@@ -345,6 +308,12 @@ User Question
 │   ├── extractor.py        #   LLM entity-relation extraction
 │   ├── entity_norm.py      #   Entity normalization
 │   └── neo4j_client.py     #   Neo4j driver
+│
+├── plan_execute/           # Plan-Execute module
+│   ├── graph.py            #   Plan-Execute workflow
+│   ├── planner.py          #   Plan generator
+│   ├── executor.py         #   Step executor
+│   └── replanner.py        #   Dynamic replanner
 │
 ├── prompts/
 │   └── system_prompt.py    #   5 system prompts
@@ -364,7 +333,16 @@ User Question
         ├── App.vue
         ├── api/index.js
         ├── stores/         #   Pinia state management
-        └── components/     #   Login/Chat/Knowledge/Approval
+        │   ├── chat.js
+        │   ├── knowledge.js
+        │   ├── approval.js
+        │   └── planExecute.js
+        └── components/     #   Components
+            ├── LoginPage.vue
+            ├── ChatPanel.vue
+            ├── KnowledgePanel.vue
+            ├── ApprovalPanel.vue
+            └── PlanExecutePanel.vue
 ```
 
 ## Quick Start
@@ -380,7 +358,7 @@ User Question
 #### Option 1: Using Virtual Environment (Recommended)
 
 ```bash
-git clone https://github.com/your-username/langgraph-multi-agent.git
+git clone https://github.com/Zhu-song/langgraph-multi-agent.git
 cd langgraph-multi-agent
 
 # Initialize virtual environment and install dependencies
@@ -512,6 +490,7 @@ docker-compose down -v
 | `lightrag_operate` | Knowledge | LightRAG dual-layer retrieval (local/global/hybrid) |
 | `reflection_self_check` | Meta-cognitive | Answer self-reflection/correction |
 | `incremental_rag_operate` | Knowledge | Knowledge base incremental/full update |
+| `plan_execute` | Plan-Exec | Complex task decomposition and execution |
 
 > 🔴 High-risk tools require human approval before execution
 
@@ -527,6 +506,14 @@ docker-compose down -v
 | POST | `/rag/stream` | LightRAG streaming output |
 | POST | `/rag/real/stream` | Real RAG streaming output |
 
+### Plan-Execute
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/plan-execute` | Plan-Execute synchronous execution |
+| POST | `/plan-execute/stream` | Plan-Execute streaming execution |
+| GET | `/plan-execute/status/{user_id}` | Get execution status |
+
 ### Knowledge & Approval
 
 | Method | Route | Description |
@@ -536,6 +523,26 @@ docker-compose down -v
 | POST | `/api/knowledge/graph/build` | Build knowledge graph |
 | GET | `/api/approval/check/{user_id}` | Check interrupt status |
 | POST | `/api/approval/resume` | Resume workflow after approval |
+
+### User Authentication
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/auth/register` | User registration |
+| POST | `/api/auth/login` | User login |
+| POST | `/api/auth/verify` | Verify user password |
+| POST | `/api/auth/reset-password` | Reset password |
+
+### Conversation Management
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/history/{user_id}` | Get conversation history |
+| POST | `/api/conversation/new/{user_id}` | Create new conversation |
+| GET | `/api/conversation/{user_id}/{conv_id}` | Get conversation details |
+| PUT | `/api/conversation/{user_id}/{conv_id}/title` | Update conversation title |
+| PUT | `/api/conversation/{user_id}/{conv_id}/pinned` | Set pinned status |
+| DELETE | `/api/conversation/{user_id}/{conv_id}` | Delete conversation |
 
 ## 📚 Documentation
 

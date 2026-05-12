@@ -30,7 +30,11 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     isLoading.value = true
     try {
       const response = await api.updateKnowledge(userId, true)
-      lastMessage.value = response.data.message
+      if (response.data.code === 200) {
+        lastMessage.value = response.data.message || '增量更新完成'
+      } else {
+        lastMessage.value = response.data.message || '更新失败'
+      }
       await fetchStatus()
       return response.data
     } catch (error) {
@@ -46,7 +50,11 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     isLoading.value = true
     try {
       const response = await api.updateKnowledge(userId, false)
-      lastMessage.value = response.data.message
+      if (response.data.code === 200) {
+        lastMessage.value = response.data.message || '全量重建完成'
+      } else {
+        lastMessage.value = response.data.message || '重建失败'
+      }
       await fetchStatus()
       return response.data
     } catch (error) {
@@ -62,7 +70,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     isLoading.value = true
     try {
       const response = await api.buildKnowledgeGraph()
-      lastMessage.value = response.data.message
+      lastMessage.value = response.data.message || '图谱构建完成'
       return response.data
     } catch (error) {
       lastMessage.value = `构建失败: ${error.message}`
@@ -71,7 +79,26 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
       isLoading.value = false
     }
   }
-  
+
+  // 清空知识图谱
+  const clearGraph = async () => {
+    isLoading.value = true
+    try {
+      const response = await api.clearKnowledgeGraph()
+      if (response.data.code === 200) {
+        lastMessage.value = response.data.message || '图谱已清空'
+      } else {
+        lastMessage.value = response.data.message || '清空失败'
+      }
+      return response.data
+    } catch (error) {
+      lastMessage.value = `清空失败: ${error.message}`
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     status,
     isLoading,
@@ -79,6 +106,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     fetchStatus,
     updateIncremental,
     updateFull,
-    buildGraph
+    buildGraph,
+    clearGraph
   }
 })

@@ -31,6 +31,11 @@
       
       <!-- 消息列表 -->
       <div v-else class="messages-list">
+        <!-- Plan-Execute 面板（独立渲染，不显示普通消息列表） -->
+        <PlanExecutePanel v-if="chatStore.mode === 'plan-execute'" />
+        
+        <!-- 非 Plan-Execute 模式的消息列表 -->
+        <template v-else>
         <div 
           v-for="msg in chatStore.messages" 
           :key="msg.id"
@@ -48,6 +53,7 @@
           </div>
           <div class="message-content" v-html="renderMarkdown(msg.content)"></div>
         </div>
+        </template>
         
         <!-- 加载中状态 -->
         <div v-if="chatStore.isLoading" class="message message-assistant">
@@ -115,10 +121,14 @@
 <script setup>
 import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { usePlanExecuteStore } from '../stores/planExecute.js'
+import PlanExecutePanel from './PlanExecutePanel.vue'
 import * as api from '../api'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 const chatStore = useChatStore()
+const planExecuteStore = usePlanExecuteStore()
 
 const inputText = ref('')
 const messagesContainer = ref(null)
@@ -230,6 +240,35 @@ const sendMessage = async () => {
           }
         }
         break
+        
+      case 'plan-execute':
+        // Plan and Execute 模式（不添加空助手消息，由 PlanExecutePanel 独立渲染）
+        
+        // 执行 Plan-Execute
+        await planExecuteStore.execute(chatStore.userId, text, (type, data) => {
+          if (type === 'step_completed') {
+            // 更新消息显示进度
+            const progress = `步骤 ${data.step_index}/${planExecuteStore.totalSteps} 完成`
+            chatStore.updateLastMessage(`⏳ ${progress}\n\n正在执行: ${data.step}`)
+            scrollToBottom()
+          } else if (type === 'final_response') {
+            // 最终回答
+            response = data.response
+            chatStore.updateLastMessage(response)
+            scrollToBottom()
+          } else if (type === 'error') {
+            response = `❌ 执行失败: ${data.error}`
+            chatStore.updateLastMessage(response)
+            scrollToBottom()
+          }
+        })
+        
+        // 如果执行成功但没有通过回调设置响应，使用 store 中的结果
+        if (!response && planExecuteStore.finalResponse) {
+          response = planExecuteStore.finalResponse
+          chatStore.updateLastMessage(response)
+        }
+        break
     }
     
     // 更新对话标题（如果是第一条消息）
@@ -306,10 +345,10 @@ const formatTime = (timestamp) => {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
-// 渲染 Markdown
+// 渲染 Markdown（使用 DOMPurify 防止 XSS 攻击）
 const renderMarkdown = (content) => {
   try {
-    return marked(content)
+    return DOMPurify.sanitize(marked(content))
   } catch {
     return content
   }

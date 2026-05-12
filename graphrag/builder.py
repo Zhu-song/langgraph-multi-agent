@@ -5,10 +5,10 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader
 # 导入文本分割器：将长文档切分为小片段，便于抽取实体关系
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# 从当前包的 settings 导入所有配置（CHUNK_SIZE、DOC_DIR 等）
-from .settings import *
+# 从当前包的 settings 导入配置（显式导入，避免命名空间污染）
+from .settings import CHUNK_SIZE, CHUNK_OVERLAP, DOC_DIR, IS_INCREMENTAL, ENTITY_SCORE_THRESHOLD
 # 导入 Neo4j 客户端：数据库驱动、清空图谱、实体检查、创建关系等方法
-from .neo4j_client import get_driver, clear_graph, is_entity_exists, create_relation_with_source
+from .neo4j_client import get_driver, clear_graph, check_entity_exists, write_relation
 # 导入实体关系抽取函数：调用 LLM 从文本抽取「实体1|关系|实体2|置信度」
 from .extractor import extract_entity_relation
 # 导入实体归一化函数：统一实体名称（如 北京/北京市 → 归一为 北京市）
@@ -99,14 +99,11 @@ def build_graph_from_docs():
 
                         # 3. 增量更新模式：两个实体都已存在，则跳过（不重复创建）
                         if IS_INCREMENTAL:
-                            if session.write_transaction(is_entity_exists, e1_norm) and session.write_transaction(is_entity_exists, e2_norm):
+                            if check_entity_exists(session, e1_norm) and check_entity_exists(session, e2_norm):
                                 continue
 
                         # 4. 写入知识图谱：创建实体与关系，并记录来源文档
-                        session.write_transaction(
-                            create_relation_with_source,
-                            e1_norm, rel.strip(), e2_norm, source=file
-                        )
+                        write_relation(session, e1_norm, rel.strip(), e2_norm, source=file)
                         # 统计成功插入的关系数量
                         all_nodes += 1
 

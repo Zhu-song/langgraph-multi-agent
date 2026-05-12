@@ -407,6 +407,22 @@ async def build_knowledge_graph():
     except Exception as e:
         return {"code": 500, "message": f"构建失败：{str(e)}", "data": None}
 
+@app.delete("/api/knowledge/graph/clear",
+    summary="清空知识图谱",
+    description="清空 Neo4j 中的所有节点和关系。",
+    tags=["知识库"])
+async def clear_knowledge_graph():
+    try:
+        from graphrag.neo4j_client import get_driver
+        d = get_driver()
+        if d is None:
+            return {"code": 500, "message": "⚠️ Neo4j 未配置，无法清空图谱", "data": None}
+        with d.session() as session:
+            session.run("MATCH (n) DETACH DELETE n")
+        return {"code": 200, "message": "✅ 知识图谱已清空", "data": None}
+    except Exception as e:
+        return {"code": 500, "message": f"清空失败：{str(e)}", "data": None}
+
 # ======================
 # 9. 用户管理 API（含密码认证）
 # ======================
@@ -913,6 +929,133 @@ async def resume_after_approval(req: ApprovalResumeRequest):
             "needs_approval": result["needs_approval"]
         }
     }
+
+# ======================
+# 10. Plan and Execute API
+# ======================
+class PlanExecuteRequest(BaseModel):
+    """Plan-Execute 请求体"""
+    user_id: str
+    query: str
+
+
+@app.post("/plan-execute",
+    summary="Plan and Execute 同步执行",
+    description="使用 Plan-Execute 模式执行任务，返回完整执行结果。",
+    tags=["Plan-Execute"])
+async def plan_execute_api(req: PlanExecuteRequest):
+    """
+    Plan and Execute 同步接口
+    
+    将复杂任务分解为多个步骤执行，返回完整的计划和执行结果
+    """
+    try:
+        from plan_execute.graph import run_plan_execute
+        
+        result = await asyncio.to_thread(
+            run_plan_execute,
+            user_input=req.query,
+            thread_id=req.user_id,
+            stream=False
+        )
+        
+        return {
+            "code": 200,
+            "user_id": req.user_id,
+            "data": {
+                "plan": result.get("plan", []),
+                "step_results": [
+                    {
+                        "step": sr.get("step"),
+                        "result": sr.get("result"),
+                        "tool_used": sr.get("tool_used"),
+                        "success": sr.get("success", True),
+                        "duration": sr.get("duration", 0)
+                    }
+                    for sr in result.get("step_results", [])
+                ],
+                "final_response": result.get("final_response", ""),
+                "replan_count": result.get("replan_count", 0),
+                "is_complete": result.get("is_complete", False),
+                "total_steps": len(result.get("step_results", []))
+            }
+        }
+    except Exception as e:
+        return {
+            "code": 500,
+            "user_id": req.user_id,
+            "message": f"执行失败: {str(e)}"
+        }
+
+
+async def plan_execute_stream_generator(req: PlanExecuteRequest):
+    """
+    Plan-Execute 流式生成器
+    
+    产出执行过程中的各种事件
+    """
+    from plan_execute.graph import run_plan_execute
+    
+    yield f"data: {json.dumps({'type': 'start', 'data': {'input': req.query}}, ensure_ascii=False)}\n\n"
+    
+    try:
+        # 获取流式事件（使用 asyncio.to_thread 避免阻塞事件循环）
+        for event in await asyncio.to_thread(run_plan_execute, req.query, req.user_id, True):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'error', 'data': {'error': str(e)}}, ensure_ascii=False)}\n\n"
+    
+    yield f"data: {json.dumps({'type': 'done', 'data': {}}, ensure_ascii=False)}\n\n"
+
+
+@app.post("/plan-execute/stream",
+    summary="Plan and Execute 流式执行",
+    description="使用 Plan-Execute 模式执行任务，通过 SSE 实时返回执行过程。",
+    tags=["Plan-Execute"])
+async def plan_execute_stream(req: PlanExecuteRequest):
+    """
+    Plan and Execute 流式接口
+    
+    通过 Server-Sent Events 实时返回：
+    - plan_generated: 计划生成完成
+    - step_completed: 步骤执行完成
+    - plan_adjusted: 计划调整
+    - final_response: 最终回答
+    """
+    return StreamingResponse(
+        plan_execute_stream_generator(req),
+        media_type="text/event-stream"
+    )
+
+
+@app.get("/plan-execute/status/{user_id}",
+    summary="Plan-Execute 执行状态",
+    description="获取指定用户的 Plan-Execute 执行状态。",
+    tags=["Plan-Execute"])
+async def get_plan_execute_status(user_id: str):
+    """
+    获取 Plan-Execute 执行状态
+    
+    返回当前执行进度、已完成的步骤等信息
+    """
+    try:
+        # 这里可以实现状态查询逻辑
+        # 由于当前实现是同步执行，暂时返回提示
+        return {
+            "code": 200,
+            "user_id": user_id,
+            "data": {
+                "status": "running",
+                "message": "Plan-Execute 执行状态查询功能待实现"
+            }
+        }
+    except Exception as e:
+        return {
+            "code": 500,
+            "user_id": user_id,
+            "message": f"查询失败: {str(e)}"
+        }
+
 
 if __name__ == "__main__":
     import uvicorn
